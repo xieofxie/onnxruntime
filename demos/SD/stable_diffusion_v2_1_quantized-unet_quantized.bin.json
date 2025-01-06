@@ -1,0 +1,141 @@
+{
+    "version": "QNN_SYSTEM_CONTEXT_BINARY_INFO_VERSION_1",
+    "info": {
+        "backendId": 6,
+        "buildId": "v2.24.0.240626131148_96320",
+        "coreApiVersion": "2.17.0",
+        "backendApiVersion": "5.24.0",
+        "socVersion": "",
+        "hwInfoBlobVersion": "0.0.1",
+        "contextBlobVersion": "3.1.2",
+        "hwInfoBlobSize": 24,
+        "hwInfoBlob": [
+            {
+                "version": "QNN_SYSTEM_CONTEXT_HTP_HW_INFO_BLOB_VERSION_V1",
+                "info": {
+                    "graphListIndex": 0,
+                    "spillFillBufferSize": 20709376
+                }
+            }
+        ],
+        "contextBlobSize": 878545624,
+        "numContextTensors": 0,
+        "contextTensors": [],
+        "numGraphs": 1,
+        "graphs": [
+            {
+                "version": "QNN_SYSTEM_CONTEXT_GRAPH_INFO_VERSION_1",
+                "info": {
+                    "graphName": "tmpl12ixrex",
+                    "numGraphInputs": 3,
+                    "graphInputs": [
+                        {
+                            "version": "QNN_TENSOR_VERSION_1",
+                            "info": {
+                                "id": 1,
+                                "name": "latent",
+                                "type": "QNN_TENSOR_TYPE_APP_WRITE",
+                                "dataFormat": "QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER",
+                                "dataType": "QNN_DATATYPE_UFIXED_POINT_16",
+                                "rank": 4,
+                                "dimensions": [
+                                    1,
+                                    64,
+                                    64,
+                                    4
+                                ],
+                                "memType": "QNN_TENSORMEMTYPE_RAW",
+                                "quantizeParams": {
+                                    "definition": "QNN_DEFINITION_DEFINED",
+                                    "quantizationEncoding": "QNN_QUANTIZATION_ENCODING_SCALE_OFFSET",
+                                    "scaleOffset": {
+                                        "scale": 0.0003242541279178113,
+                                        "offset": -38502
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "version": "QNN_TENSOR_VERSION_1",
+                            "info": {
+                                "id": 2,
+                                "name": "time_emb",
+                                "type": "QNN_TENSOR_TYPE_APP_WRITE",
+                                "dataFormat": "QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER",
+                                "dataType": "QNN_DATATYPE_UFIXED_POINT_16",
+                                "rank": 2,
+                                "dimensions": [
+                                    1,
+                                    1280
+                                ],
+                                "memType": "QNN_TENSORMEMTYPE_RAW",
+                                "quantizeParams": {
+                                    "definition": "QNN_DEFINITION_DEFINED",
+                                    "quantizationEncoding": "QNN_QUANTIZATION_ENCODING_SCALE_OFFSET",
+                                    "scaleOffset": {
+                                        "scale": 0.00019250607874710113,
+                                        "offset": -31013
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "version": "QNN_TENSOR_VERSION_1",
+                            "info": {
+                                "id": 3,
+                                "name": "text_emb",
+                                "type": "QNN_TENSOR_TYPE_APP_WRITE",
+                                "dataFormat": "QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER",
+                                "dataType": "QNN_DATATYPE_UFIXED_POINT_16",
+                                "rank": 3,
+                                "dimensions": [
+                                    1,
+                                    77,
+                                    1024
+                                ],
+                                "memType": "QNN_TENSORMEMTYPE_RAW",
+                                "quantizeParams": {
+                                    "definition": "QNN_DEFINITION_DEFINED",
+                                    "quantizationEncoding": "QNN_QUANTIZATION_ENCODING_SCALE_OFFSET",
+                                    "scaleOffset": {
+                                        "scale": 0.00035859853960573673,
+                                        "offset": -26247
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "numGraphOutputs": 1,
+                    "graphOutputs": [
+                        {
+                            "version": "QNN_TENSOR_VERSION_1",
+                            "info": {
+                                "id": 14267,
+                                "name": "output_latent",
+                                "type": "QNN_TENSOR_TYPE_APP_READ",
+                                "dataFormat": "QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER",
+                                "dataType": "QNN_DATATYPE_UFIXED_POINT_16",
+                                "rank": 4,
+                                "dimensions": [
+                                    1,
+                                    64,
+                                    64,
+                                    4
+                                ],
+                                "memType": "QNN_TENSORMEMTYPE_RAW",
+                                "quantizeParams": {
+                                    "definition": "QNN_DEFINITION_DEFINED",
+                                    "quantizationEncoding": "QNN_QUANTIZATION_ENCODING_SCALE_OFFSET",
+                                    "scaleOffset": {
+                                        "scale": 0.00014419264334719628,
+                                        "offset": -33096
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}

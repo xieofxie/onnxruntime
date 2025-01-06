@@ -1,0 +1,9 @@
+# executables
+
+*.cat
+*.dll
+*.lib
+
+# model files
+
+!*.onnx
