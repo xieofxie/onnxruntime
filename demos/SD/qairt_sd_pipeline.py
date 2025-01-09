@@ -5,29 +5,20 @@
 # SPDX-License-Identifier: BSD-3-Clause
 #
 # =============================================================================
-from qai_hub_models.utils.display import display_or_save_image
 from PIL import Image
 import os
 import numpy as np
 import torch
 from transformers import CLIPTokenizer
-from qai_appbuilder import (
-    QNNContext,
-    Runtime,
-    LogLevel,
-    ProfilingLevel,
-    PerfProfile,
-    QNNConfig,
-    timer,
-)
 from diffusers.models.embeddings import get_timestep_embedding, TimestepEmbedding
 import qairt_constants as consts
-from pipeline_utils import StableDiffusionInput, UpscalerPipeline, QPipeline, set_scheduler
+from pipeline_utils import StableDiffusionInput, QPipeline, set_scheduler
 from diffusers import DPMSolverMultistepScheduler, UNet2DConditionModel
 import onnxruntime as ort
 from onnxruntime import InferenceSession
 
-useort=not False
+useort=True
+ourort=False
 
 model_path_1_5 = "."
 model_path_2_1 = "."
@@ -47,43 +38,46 @@ def float_to_tfN_uint16(inp, offset, scale):
 
 #https://github.com/quic/wos-ai-plugins/blob/main/plugins/stable-diffusion-webui/qairt_accelerate/qairt_sd_pipeline.py
 
-class TextEncoder(QNNContext):
-    # @timer
-    def Inference(self, input_data, sd_version):
-        input_datas = [input_data]
-        output_data = super().Inference(input_datas, perf_profile="burst")[0]
+if not useort:
+    from qai_appbuilder import QNNContext
 
-        # Output of Text encoder should be of shape (1, 77, 768)
-        if sd_version == "1.5":
-            output_data = output_data.reshape((1, 77, 768))
-        elif sd_version == "2.1":
-            output_data = output_data.reshape((1, 77, 1024))
-        return output_data
+    class TextEncoder(QNNContext):
+        # @timer
+        def Inference(self, input_data, sd_version):
+            input_datas = [input_data]
+            output_data = super().Inference(input_datas, perf_profile="burst")[0]
 
-
-class Unet(QNNContext):
-    # @timer
-    def Inference(self, input_data_1, input_data_2, input_data_3):
-        # We need to reshape the array to 1 dimensionality before send it to the network. 'input_data_2' already is 1 dimensionality, so doesn't need to reshape.
-        input_data_1 = input_data_1.reshape(input_data_1.size)
-        input_data_3 = input_data_3.reshape(input_data_3.size)
-
-        input_datas = [input_data_1, input_data_2, input_data_3]
-        output_data = super().Inference(input_datas, perf_profile="burst")[0]
-
-        output_data = output_data.reshape(1, 64, 64, 4)
-        return output_data
+            # Output of Text encoder should be of shape (1, 77, 768)
+            if sd_version == "1.5":
+                output_data = output_data.reshape((1, 77, 768))
+            elif sd_version == "2.1":
+                output_data = output_data.reshape((1, 77, 1024))
+            return output_data
 
 
-class VaeDecoder(QNNContext):
-    # @timer
-    def Inference(self, input_data):
-        input_data = input_data.reshape(input_data.size)
-        input_datas = [input_data]
+    class Unet(QNNContext):
+        # @timer
+        def Inference(self, input_data_1, input_data_2, input_data_3):
+            # We need to reshape the array to 1 dimensionality before send it to the network. 'input_data_2' already is 1 dimensionality, so doesn't need to reshape.
+            input_data_1 = input_data_1.reshape(input_data_1.size)
+            input_data_3 = input_data_3.reshape(input_data_3.size)
 
-        output_data = super().Inference(input_datas, perf_profile="burst")[0]
+            input_datas = [input_data_1, input_data_2, input_data_3]
+            output_data = super().Inference(input_datas, perf_profile="burst")[0]
 
-        return output_data
+            output_data = output_data.reshape(1, 64, 64, 4)
+            return output_data
+
+
+    class VaeDecoder(QNNContext):
+        # @timer
+        def Inference(self, input_data):
+            input_data = input_data.reshape(input_data.size)
+            input_datas = [input_data]
+
+            output_data = super().Inference(input_datas, perf_profile="burst")[0]
+
+            return output_data
 
 class QnnStableDiffusionPipeline(QPipeline):
     TOKENIZER_MAX_LENGTH = 77  # Define Tokenizer output max length (must be 77)
@@ -179,6 +173,13 @@ class QnnStableDiffusionPipeline(QPipeline):
 
     def load_model(self):
         if not useort:
+            from qai_appbuilder import (
+                QNNConfig,
+                Runtime,
+                LogLevel,
+                ProfilingLevel,
+            )
+
             QNNConfig.Config(
                 'D:\\SD', Runtime.HTP, LogLevel.ERROR, ProfilingLevel.BASIC
             )
@@ -206,15 +207,25 @@ class QnnStableDiffusionPipeline(QPipeline):
         unet_model = "./stable_diffusion_v2_1_quantized-unet_quantized.bin"
         vae_decoder_model = "./stable_diffusion_v2_1_quantized-vaedecoder_quantized.bin"
         print(f"Loading models from {model_path}")
-        
+
         options = ort.SessionOptions()
         options.add_session_config_entry("session.disable_cpu_ep_fallback", "0")
-    #options.log_severity_level = 0
+        #options.log_severity_level = 0
         if useort:
-            self.text_encoder = ort.InferenceSession("./tmp0ln7wpp0_qnn_ctx_fp32_io.onnx",
-                                    sess_options=options,
-                                    providers=["QNNExecutionProvider"],
-                                    provider_options=[{"backend_path": "QnnHtp.dll"}])
+            if ourort:
+                options2 = ort.SessionOptions()
+                #options.add_session_config_entry("session.disable_cpu_ep_fallback", "0")
+                #options2.log_severity_level = 0
+                self.text_encoder = ort.InferenceSession("./textencoder.qnn.onnx",
+                                                         sess_options=options2,
+                                                         providers=["QNNExecutionProvider"],
+                                                         provider_options=[{"backend_path": "QnnHtp.dll"}])
+            else:
+                self.text_encoder = ort.InferenceSession("./tmp0ln7wpp0_qnn_ctx_fp32_io.onnx",
+                                        sess_options=options,
+                                        providers=["QNNExecutionProvider"],
+                                        provider_options=[{"backend_path": "QnnHtp.dll"}])
+
             self.vae_decoder = ort.InferenceSession("./tmpcfnt7ir2_qnn_ctx.onnx",
                                     sess_options=options,
                                     providers=["QNNExecutionProvider"],
@@ -223,7 +234,7 @@ class QnnStableDiffusionPipeline(QPipeline):
                                 sess_options=options,
                                 providers=["QNNExecutionProvider"],
                                 provider_options=[{"backend_path": "QnnHtp.dll"}])
-                
+
         else:
             # Instance for TextEncoder
             #self.text_encoder = TextEncoder(model_text_encoder, text_encoder_model)
@@ -246,10 +257,8 @@ class QnnStableDiffusionPipeline(QPipeline):
         self,
         sd_input: StableDiffusionInput,
         callback,
-        upscaler_pipeline: UpscalerPipeline,
     ) -> Image:
         image = None
-        PerfProfile.SetPerfProfileGlobal(PerfProfile.BURST)
         if self.sd_version == "2.1":
             self.scheduler = set_scheduler("stabilityai/stable-diffusion-2-base", sd_input.sampler_name)
         elif self.sd_version == "1.5":
@@ -345,20 +354,12 @@ class QnnStableDiffusionPipeline(QPipeline):
             callback(None)
         else:
             image_size = 512
-
-            # Run RealESRGan
-            if sd_input.is_high_resolution:
-                print(f"Upscaler used: {sd_input.upscaler_model_path}")
-                output_image = upscaler_pipeline.execute(output_image)
-                image_size = 2048
-
             output_image = np.clip(output_image * 255.0, 0.0, 255.0).astype(np.uint8)
             output_image = output_image.reshape(image_size, image_size, -1)
             image = Image.fromarray(output_image, mode="RGB")  # .save(image_path)
 
             callback(image)
 
-        PerfProfile.RelPerfProfileGlobal()
         return image
 
     # Release all the models.
@@ -372,7 +373,7 @@ class QnnStableDiffusionPipeline(QPipeline):
 
     def is_model_loaded(self):
         return self.unet != None
-    
+
 sd_input = StableDiffusionInput(
             True,
             "mickey mouse",#"a flying cat",#"spectacular view of northern lights from Alaska",
@@ -387,7 +388,6 @@ pipeline=QnnStableDiffusionPipeline("Stable-Diffusion-2.1")
 image = pipeline.model_execute(
             sd_input,
             lambda result: result,
-            None,
         )
 
-display_or_save_image(image)
+image.show()

@@ -10,7 +10,6 @@ import qairt_constants as consts
 import numpy as np
 from PIL import Image
 from huggingface_hub import hf_hub_download
-from qai_appbuilder import QNNContextProc, QNNShareMemory
 from diffusers import (
     DDIMScheduler,
     DPMSolverMultistepScheduler,
@@ -21,7 +20,6 @@ from diffusers import (
     PNDMScheduler,
     DDPMScheduler,
 )
-
 
 class QPipeline:
     model_name = None
@@ -100,39 +98,6 @@ def download_qualcomm_models_hf(model_path, hf_repo_id, files, revision):
             revision=revision,
         )
 
-
-class UpscaleModel(QNNContextProc):
-    # @timer
-    def Inference(self, mem, input_data):
-        input_datas = [input_data]
-        output_data = super().Inference(mem, input_datas, perf_profile="burst")[0]
-        return output_data
-
-
-class UpscalerPipeline(QPipeline):
-    model = None
-    model_mem = None
-
-    def __init__(self, model_name, model_path):
-        super().__init__(model_name)
-        name = "upscale"
-        # process names
-        model_proc = "~upscale"
-        # share memory names.
-        model_mem_name = name + "~memory"
-
-        # Instance for RealESRGan which inherited from the class QNNContextProc, the model will be loaded into a separate process.
-        self.model = UpscaleModel(name, model_proc, model_path)
-        self.model_mem = QNNShareMemory(model_mem_name, 1024 * 1024 * 50)  # 50M
-
-    # Release all the models.
-    def __del__(self):
-        del self.model
-        del self.model_mem
-
-    def execute(self, input):
-        return self.model.Inference(self.model_mem, [input])
-
 def set_scheduler(model_path, sampler_name):
     scheduler = DPMSolverMultistepScheduler.from_pretrained(
             model_path, subfolder="scheduler")
@@ -156,8 +121,8 @@ def set_scheduler(model_path, sampler_name):
             model_path, subfolder="scheduler")
     elif sampler_name == "DPM++ 2M Karras":
         scheduler = DPMSolverMultistepScheduler.from_pretrained(
-            model_path, subfolder="scheduler", 
-            algorithm_type="dpmsolver++", 
+            model_path, subfolder="scheduler",
+            algorithm_type="dpmsolver++",
             use_karras_sigmas=True,)
     elif sampler_name == "DDIM":
         scheduler = DDIMScheduler.from_pretrained(
