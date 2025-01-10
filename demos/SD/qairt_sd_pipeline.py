@@ -130,10 +130,11 @@ class QnnStableDiffusionPipeline(QPipeline):
         latent_in,
         timestep,
     ):
-        # Convert all inputs from NHWC to NCHW
-        noise_pred_uncond = np.transpose(noise_pred_uncond, (0, 3, 1, 2)).copy()
-        noise_pred_text = np.transpose(noise_pred_text, (0, 3, 1, 2)).copy()
-        latent_in = np.transpose(latent_in, (0, 3, 1, 2)).copy()
+        if not ourort:
+            # Convert all inputs from NHWC to NCHW
+            noise_pred_uncond = np.transpose(noise_pred_uncond, (0, 3, 1, 2)).copy()
+            noise_pred_text = np.transpose(noise_pred_text, (0, 3, 1, 2)).copy()
+            latent_in = np.transpose(latent_in, (0, 3, 1, 2)).copy()
 
         # Convert all inputs to torch tensors
         noise_pred_uncond = torch.from_numpy(noise_pred_uncond)
@@ -150,8 +151,9 @@ class QnnStableDiffusionPipeline(QPipeline):
             noise_pred, timestep, latent_in
         ).prev_sample.numpy()
 
-        # Convert latent_out from NCHW to NHWC
-        latent_out = np.transpose(latent_out, (0, 2, 3, 1)).copy()
+        if not ourort:
+            # Convert latent_out from NCHW to NHWC
+            latent_out = np.transpose(latent_out, (0, 2, 3, 1)).copy()
 
         return latent_out
 
@@ -214,22 +216,22 @@ class QnnStableDiffusionPipeline(QPipeline):
 
         options_our = ort.SessionOptions()
         #options_our.add_session_config_entry("session.disable_cpu_ep_fallback", "0")
-        #options_our.log_severity_level = 0
+        options_our.add_session_config_entry("ep.context_enable", "1")
+        options_our.log_severity_level = 1
         if useort:
             if ourort:
-
-                self.text_encoder = ort.InferenceSession("./textencoder.qnn.onnx",
-                                                         sess_options=options_our,
-                                                         providers=["QNNExecutionProvider"],
-                                                         provider_options=[{"backend_path": "QnnHtp.dll"}])
-                self.vae_decoder = ort.InferenceSession("./vaedecoder.qnn.onnx",
-                                        sess_options=options_our,
-                                        providers=["QNNExecutionProvider"],
-                                        provider_options=[{"backend_path": "QnnHtp.dll"}])
-                self.unet = ort.InferenceSession("./unet.qnn.onnx",
+                self.unet = ort.InferenceSession("./unet.onnx",#.qnn.onnx_ctx
                                     sess_options=options_our,
-                                    providers=["QNNExecutionProvider"],
+                                    #providers=["QNNExecutionProvider"],
                                     provider_options=[{"backend_path": "QnnHtp.dll"}])
+                self.text_encoder = ort.InferenceSession("./textencoder.onnx",#qnn.onnx_ctx.
+                                                         sess_options=options_our,
+                                                         #providers=["QNNExecutionProvider"],
+                                                         provider_options=[{"backend_path": "QnnHtp.dll"}])
+                self.vae_decoder = ort.InferenceSession("./vaedecoder.onnx",#.qnn.onnx_ctx
+                                        sess_options=options_our,
+                                        #providers=["QNNExecutionProvider"],
+                                        provider_options=[{"backend_path": "QnnHtp.dll"}])
             else:
                 self.text_encoder = ort.InferenceSession("./tmp0ln7wpp0_qnn_ctx_fp32_io.onnx",
                                         sess_options=options,
@@ -322,7 +324,7 @@ class QnnStableDiffusionPipeline(QPipeline):
             if useort:
                 if ourort:
                     latent_dq = latent_in
-                    time_emb_dq = np.array([time_step])
+                    time_emb_dq = np.array([time_step]).astype(np.float32)
                 else:
                     latent_dq = float_to_tfN_uint16(latent_in, -38502, 0.0003242541279178113)
                     time_emb_dq = float_to_tfN_uint16(time_embedding, -31013, 0.00019250607874710113)
@@ -365,11 +367,13 @@ class QnnStableDiffusionPipeline(QPipeline):
         if useort:
             if ourort:
                 latent_dq = latent_in
+                latent_dq = latent_dq / 0.18215
             else:
                 latent_dq = float_to_tfN_uint16(latent_in,-33431,0.0002136853727279231)
             outputs = self.vae_decoder.run(None, { 'latent': latent_dq})
             if ourort:
                 output_image = outputs[0].transpose(0, 2, 3, 1)
+                output_image = (output_image / 2 + 0.5)
             else:
                 output_image = outputs[0].astype(np.float32)
                 output_image=output_image*0.000015259021893143655

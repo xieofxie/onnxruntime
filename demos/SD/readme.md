@@ -39,3 +39,7 @@ Date:   Wed Jul 24 10:17:12 2024 -0700
 Comment D:\onnxruntime\cmake\onnxruntime_python.cmake line 223:   target_link_libraries(onnxruntime_pybind11_state PRIVATE ${Python_LIBRARY_RELEASE})
 
 Then use `.\build.bat --arm64ec --use_qnn --qnn_home D:\Downloads\2.24.0.240626 --build_wheel  --skip_submodule_sync --config Release --build_dir .\build\qnn-arm64ec --skip_tests --path_to_protoc_exe D:\onnxruntime\build\qnn\Release\_deps\protobuf-build\Release\protoc.exe`
+
+# Other
+
+Great doc: https://www.felixsanz.dev/articles/how-to-implement-stable-diffusion
