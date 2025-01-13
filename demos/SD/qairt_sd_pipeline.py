@@ -17,6 +17,7 @@ from diffusers import DPMSolverMultistepScheduler, UNet2DConditionModel
 import onnxruntime as ort
 from onnxruntime import InferenceSession
 from datetime import datetime
+import os
 
 useort=True
 ourort=not False
@@ -24,7 +25,12 @@ ourort=not False
 model_path_1_5 = "."
 model_path_2_1 = "."
 
-data_folder = str("data/") + (datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+prompt = "mickey mouse"
+prompt = "a flying cat"
+prompt = "hamburger swims in the river"
+
+data_folder = "data/" + datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + "_" + prompt.replace(" ", "_")
+os.makedirs(data_folder, exist_ok=True)
 
 # https://github.com/quic/ai-engine-direct-helper/blob/216166cbb841db85b155caf4eaee6f194f9ed326/src/Utils/DataUtil.cpp#L436
 
@@ -284,11 +290,11 @@ class QnnStableDiffusionPipeline(QPipeline):
             user_text_embedding = self.text_encoder.Inference(cond_tokens, self.sd_version)
         else:
             t=cond_tokens.astype(np.int32).reshape((1,77))
-            np.save(data_folder + "/cond_tokens.raw", t)
+            t.tofile(data_folder + "/cond_tokens.raw")
             outputs = self.text_encoder.run(None, { 'tokens': t })
             user_text_embedding = outputs[0]
             t=uncond_tokens.astype(np.int32).reshape((1,77))
-            np.save(data_folder + "/uncond_tokens.raw", t)
+            t.tofile(data_folder + "/uncond_tokens.raw")
             outputs = self.text_encoder.run(None, { 'tokens': t })
             uncond_text_embedding = outputs[0]
 
@@ -307,7 +313,7 @@ class QnnStableDiffusionPipeline(QPipeline):
 
         # Run the loop for user_step times
         for step in range(sd_input.user_step):
-            # print(f"Step {step} Running...")
+            print(f"Step {step} Running...")
 
             time_step = self.get_timestep(step)
             unet_time_embeddings = self.unet_time_embeddings_2_1
@@ -321,9 +327,9 @@ class QnnStableDiffusionPipeline(QPipeline):
                     latent_dq = float_to_tfN_uint16(latent_in, -38502, 0.0003242541279178113)
                     time_emb_dq = float_to_tfN_uint16(time_embedding, -31013, 0.00019250607874710113)
 
-                np.save(data_folder + f"/{step}_latent.raw", latent_dq)
-                np.save(data_folder + f"/{step}_time.raw", time_emb_dq)
-                np.save(data_folder + f"/{step}_untext.raw", untext_emb_dq)
+                latent_dq.tofile(data_folder + f"/{step}_latent.raw")
+                time_emb_dq.tofile(data_folder + f"/{step}_time.raw")
+                untext_emb_dq.tofile(data_folder + f"/{step}_untext.raw")
                 outputs = self.unet.run(None, { 'latent': latent_dq,
                                            'time_emb': time_emb_dq,
                                            'text_emb': untext_emb_dq})
@@ -333,7 +339,7 @@ class QnnStableDiffusionPipeline(QPipeline):
                     outputs = outputs[0].astype(np.float32)
                     unconditional_noise_pred=(outputs-33096)*0.00014419264334719628
 
-                np.save(data_folder + f"/{step}_text.raw", text_emb_dq)
+                text_emb_dq.tofile(data_folder + f"/{step}_text.raw")
                 outputs = self.unet.run(None, { 'latent': latent_dq,
                                            'time_emb': time_emb_dq,
                                            'text_emb': text_emb_dq})
@@ -366,7 +372,7 @@ class QnnStableDiffusionPipeline(QPipeline):
                 latent_dq = latent_dq / 0.18215
             else:
                 latent_dq = float_to_tfN_uint16(latent_in,-33431,0.0002136853727279231)
-            np.save(data_folder + f"/latent.raw", latent_dq)
+            latent_dq.tofile(data_folder + f"/latent.raw")
             outputs = self.vae_decoder.run(None, { 'latent': latent_dq})
             if ourort:
                 output_image = outputs[0].transpose(0, 2, 3, 1)
@@ -404,7 +410,7 @@ class QnnStableDiffusionPipeline(QPipeline):
 
 sd_input = StableDiffusionInput(
             True,
-            "mickey mouse",#"a flying cat",#"spectacular view of northern lights from Alaska",
+            prompt,
             "",
             0,
             5,
