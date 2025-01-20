@@ -1,5 +1,9 @@
 # Run Qualcomm SD via onnxruntime
 
+## Download Qualcomm SDK
+
+https://softwarecenter.qualcomm.com/#/catalog/item/qualcomm_ai_engine_direct
+
 ## Download SD bin files from Qualcomm
 
 https://aihub.qualcomm.com/compute/models/stable_diffusion_v2_1_quantized?searchTerm=stable

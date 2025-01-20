@@ -373,6 +373,7 @@ class QnnStableDiffusionPipeline(QPipeline):
             else:
                 latent_dq = float_to_tfN_uint16(latent_in,-33431,0.0002136853727279231)
             latent_dq.tofile(data_folder + f"/latent.raw")
+            print("decoding..")
             outputs = self.vae_decoder.run(None, { 'latent': latent_dq})
             if ourort:
                 output_image = outputs[0].transpose(0, 2, 3, 1)
